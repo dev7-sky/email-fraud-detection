@@ -1,0 +1,20 @@
+From: notifications@example.com
+To: demo-recipient@example.org
+Date: Tue, 06 Oct 2026 09:00:00 +0000
+Subject: Your professional network digest
+Message-ID: <legitimate-demo@example.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Received-SPF: pass (example.com: domain of notifications@example.com designates 192.0.2.20 as permitted sender)
+DKIM-Signature: v=1; a=rsa-sha256; d=example.com; s=demo; bh=synthetic; b=synthetic
+Authentication-Results: mx.example.com; spf=pass; dkim=pass; dmarc=pass
+
+Hello,
+
+Here is your weekly professional network digest. You can review your
+notifications at https://www.example.com/network/notifications.
+
+No action is required. This synthetic message contains no personal data.
+
+Thanks,
+The Example Network team

@@ -1,0 +1,53 @@
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+secrets/
+secret/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Personal mailbox and Google Takeout data
+input/
+*.mbox
+*.eml
+!samples/
+!samples/**/*.eml
+takeouts/
+*.zip
+
+# Generated reports, rendered emails, and attachments
+outputs/
+reports/
+generated/
+
+# Temporary and scratch files
+*.tmp
+*.temp
+*.bak
+tempCodeRunnerFile*
+pehla.py
+import json.py
+*.python
+~$*
+
+# IDE and operating-system files
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
