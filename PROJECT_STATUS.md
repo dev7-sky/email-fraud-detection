@@ -62,7 +62,7 @@ Feature Extractor
 | Look-alike detection | 🟡 PARTIAL | Explainable character-normalized similarity against a small brand set | `parser/url_domain_analysis.py` | Expand brands and validate against labelled examples |
 | Redirect detection | 🟡 PARTIAL | Detects shorteners and redirect-like URL indicators without network access | `parser/url_domain_analysis.py` | Consider isolated redirect inspection later; never follow arbitrary links |
 | NLP/content analysis | 🟡 PARTIAL | Keyword-based urgency and credential-request cues | `parser/feature_extractor.py` | Improve tokenization and validation |
-| Feature vector | 🟡 PARTIAL | Structured feature dictionary exists | `parser/mail_parser.py`, `parser/feature_extractor.py` | Define model-ready numeric schema |
+| Feature vector | 🟢 COMPLETE | Deterministic 21-value numeric vector with stable feature-name list and safe defaults | `parser/feature_vector.py` | Review schema before ML |
 | Training dataset | 🔴 NOT STARTED | Existing mailboxes are not labelled phishing datasets | `input/` | Obtain and label a suitable corpus |
 | ML model | 🔴 NOT STARTED | No training or inference code | None | Build only after labelled features exist |
 | Risk engine | 🔴 NOT STARTED | No score or thresholds | None | Combine validated signals and model probability |
@@ -123,6 +123,15 @@ authentication, mixed/unknown authentication with an IP-based URL, and failed
 authentication with credential-request language and a `.invalid` look-alike
 domain. They are parsed directly with Python's standard email parser; the
 existing MBOX viewer pipeline was not changed.
+
+### Model-ready feature vector
+
+Added `parser/feature_vector.py` with `FEATURE_NAMES` and
+`features_to_vector(features)`. It converts the existing nested feature
+dictionary into a deterministic 21-value numeric vector. Boolean signals are
+encoded as `0.0` or `1.0`; URL signals use conservative aggregation across
+all URLs (any suspicious flag, maximum look-alike score, and maximum lengths);
+missing values default to zero. No model training or classification was added.
 
 ## 5. Important Technical Distinctions
 
@@ -300,6 +309,7 @@ Validation:
 | Synthetic legitimate `.eml` | `samples/legitimate/legitimate_linkedin.eml` | Normal URL and passing authentication are extracted | Covered by focused tests | PASS |
 | Synthetic suspicious `.eml` | `samples/suspicious/suspicious_account.eml` | Urgency, IP URL, and mixed authentication are extracted | Covered by focused tests | PASS |
 | Synthetic phishing `.eml` | `samples/phishing/phishing_credential.eml` | Credential language, look-alike URL, and failed authentication are extracted | Covered by focused tests | PASS |
+| Feature vector | Extracted feature dictionaries and empty dictionary | Stable 21-name schema, numeric vector, and safe defaults | Covered by focused tests | PASS |
 
 ## 9. Current TODO
 
@@ -324,7 +334,8 @@ Validation:
 
 ## 10. NEXT STEP
 
-**Define the model-ready feature-vector schema.**
+**Review the 21-feature model-ready vector schema before collecting labelled
+training data.**
 
 Authentication extraction is now separated into presence, status, pass value,
 and raw results. The next step is to decide which stable, numeric and

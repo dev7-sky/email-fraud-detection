@@ -4,6 +4,7 @@ from email.parser import BytesParser
 from pathlib import Path
 
 from parser.feature_extractor import extract_email_features
+from parser.feature_vector import FEATURE_NAMES, features_to_vector
 from parser.url_domain_analysis import TrancoLookup, analyze_url
 
 
@@ -185,3 +186,25 @@ def test_synthetic_phishing_sample_has_credential_and_failed_auth_signals():
     assert features["auth"]["dkim_status"] == "fail"
     assert features["auth"]["dmarc_status"] == "fail"
     assert "spf=fail" in features["auth"]["auth_results"]
+
+
+def test_feature_vector_has_stable_numeric_schema_for_extracted_features():
+    _, features = load_sample("phishing/phishing_credential.eml")
+
+    names, vector = features_to_vector(features)
+
+    assert names == FEATURE_NAMES
+    assert len(names) == len(vector) == 21
+    assert all(isinstance(value, float) for value in vector)
+    assert vector[names.index("spf_present")] == 1.0
+    assert vector[names.index("spf_pass")] == 0.0
+    assert vector[names.index("url_count")] == 1.0
+    assert vector[names.index("credential_request")] == 1.0
+    assert vector[names.index("lookalike_match")] == 1.0
+
+
+def test_feature_vector_uses_safe_defaults_for_missing_values():
+    names, vector = features_to_vector({})
+
+    assert len(names) == len(vector) == 21
+    assert vector == [0.0] * 21

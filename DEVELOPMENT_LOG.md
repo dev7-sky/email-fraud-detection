@@ -114,6 +114,28 @@ source, tests, and documentation are staged.
 
 **Next:** Define and review the model-ready feature-vector schema.
 
+## Step 8 — Stable Model-Ready Feature Vector
+
+**Date:** 2026-10-07
+
+**What I did:** Added a deterministic numeric vector adapter for the existing
+authentication, URL/domain, content, attachment, and text-length features.
+
+**Files:** `parser/feature_vector.py`, `tests/test_feature_extractor.py`,
+`PROJECT_STATUS.md`
+
+**Schema:** The vector has 21 stable names in `FEATURE_NAMES`. Boolean values
+use `0.0`/`1.0`; URL indicators aggregate deterministically across URLs;
+missing values safely become zero. The original feature dictionary is
+unchanged and remains available for explainability.
+
+**Testing:** Added tests for the phishing fixture and an empty feature
+dictionary. ML training and final classification remain intentionally absent.
+
+**Result:** PASS.
+
+**Next:** Review the vector schema, then obtain a labelled non-personal dataset.
+
 ## Step 7 — Safe Synthetic Demonstration Emails
 
 **Date:** 2026-10-07
