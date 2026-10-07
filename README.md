@@ -8,11 +8,10 @@ evidence without automatically visiting dangerous URLs.
 
 ## Project objective
 
-The long-term objective is to analyze a reported email, extract authentication,
-URL/domain, and content features, then use a reviewed ML model and a separate
-risk engine to produce an explainable `SAFE`, `SUSPICIOUS`, or `PHISHING`
-result. The current repository is intentionally still in the feature
-extraction stage.
+The objective is to analyze a reported email, extract authentication,
+URL/domain, and content features, then produce an explainable
+`SAFE`, `SUSPICIOUS`, or `PHISHING` result. The current repository has a
+working rule-based analysis path; ML remains a future or parallel component.
 
 This project is being developed to help an analyst inspect suspicious emails.
 The long-term system will parse an email, extract authentication, URL/domain,
@@ -21,7 +20,7 @@ and content features, classify the email as `SAFE`, `SUSPICIOUS`, or
 
 ## Current functionality
 
-The current implementation is an early foundation:
+The current implementation includes:
 
 - Reads Gmail/Google Takeout `.mbox` files.
 - Extracts headers, plain text, HTML, dates, and attachments.
@@ -29,11 +28,14 @@ The current implementation is an early foundation:
   authentication metadata features.
 - Extracts URL/domain structure, shortener, IP, punycode, suspicious-keyword,
   and explainable look-alike features without visiting links.
+- Converts the extracted dictionary into a deterministic 21-feature numeric
+  vector with safe defaults.
+- Applies a transparent rule-based risk engine with human-readable reasons.
+- Analyzes synthetic `.eml` files through `analyze_email.py`.
 - Generates a searchable static HTML email viewer.
 
-There is currently no ML model, risk engine, classification, cryptographic
-SPF/DKIM/DMARC verification, or `.eml` application input entry point. Tranco lookup support is
-implemented, but no Tranco dataset is present in this workspace.
+There is currently no ML model, trained ML result, cryptographic SPF/DKIM/DMARC
+verification, analyst review workflow, or production Tranco dataset.
 
 The code supports an optional Tranco CSV lookup. No Tranco dataset is currently
 present in this workspace. A missing domain is represented neutrally, not as a
@@ -42,17 +44,16 @@ malicious result.
 ## Architecture
 
 ```text
-Reported email/mailbox
-        -> Parser
-        -> Feature extractor
-           -> Authentication (SPF/DKIM/DMARC)
-           -> URL/domain analysis (passive, no URL visits)
-           -> Content heuristics
-        -> Feature vector (next)
-        -> ML model (future)
-        -> Risk engine (future)
-        -> Classification + reasons (future)
-        -> Human analyst review (future)
+.eml / email
+        -> Email Parser
+        -> Feature Extraction
+        -> 21-feature numeric vector
+        -> Explainable Risk Engine
+        -> Risk Score + Classification + Reasons
+        -> SAFE / SUSPICIOUS / PHISHING
+
+ML model training/integration is a future or parallel component and is not
+currently connected to this path.
 ```
 
 The detailed tracking document is [PROJECT_STATUS.md](PROJECT_STATUS.md).
@@ -104,9 +105,10 @@ python -m pytest
 ## Current project status
 
 The parser, feature extraction, authentication status extraction, passive
-URL/domain analysis, rule-based risk engine, terminal `.eml` demo, and static
-viewer are implemented and tested. The ML model, analyst review workflow, and
-real Tranco dataset integration are not complete.
+URL/domain analysis, deterministic 21-feature vector, rule-based risk engine,
+terminal `.eml` demo, and static viewer are implemented and tested. The ML
+model, labelled-dataset integration, analyst review workflow, and real Tranco
+dataset integration are not complete.
 
 ## Inspect extracted features in the terminal
 
@@ -177,6 +179,37 @@ signals, the rule-based risk score, classification, and reasons. It also
 constructs the existing 21-value feature vector internally. It does not train
 or invoke an ML model and never visits URLs.
 
+Expected synthetic results:
+
+```text
+legitimate_linkedin.eml -> SAFE, 0/100
+suspicious_account.eml  -> SUSPICIOUS, 40/100
+phishing_credential.eml -> PHISHING, 100/100
+```
+
+## Model-ready feature vector
+
+`parser/feature_vector.py` exposes `features_to_vector(features)` and the
+fixed `FEATURE_NAMES` list. The vector has exactly 21 deterministic numeric
+values:
+
+```text
+spf_present, spf_pass, dkim_present, dkim_pass, dmarc_present, dmarc_pass,
+url_count, suspicious_url, suspicious_domain, ip_based_url, lookalike_score,
+lookalike_match, shortened_url, max_url_length, max_domain_length,
+max_subdomain_count, credential_request, urgency_score, has_attachment,
+attachments_count, email_text_length
+```
+
+## Explainable risk engine
+
+`parser/risk_engine.py:calculate_risk(features)` uses transparent rules:
+SPF fail +15, DKIM fail +15, DMARC fail +20, suspicious domain +20,
+look-alike +20, IP URL +15, suspicious URL +15, credential request +20,
+high urgency (`urgency_score >= 2`) +10, and URL shortener +5. The score is
+capped at 100. Thresholds are SAFE 0-29, SUSPICIOUS 30-59, and PHISHING
+60-100. Reasons include the triggered rule and point contribution.
+
 ## Project structure
 
 ```text
@@ -201,15 +234,18 @@ DEVELOPMENT_LOG.md              Plain-language development journal
 
 Current features and the risk decision are heuristics and metadata extraction,
 not ML. Authentication results are parsed from existing headers but are not
-cryptographically re-verified. Existing mailbox data is not a labelled
-training dataset, and no Tranco file is currently present in this workspace.
+cryptographically re-verified. A separate labelled dataset,
+`Phishing_Email.csv`, is available for the ML teammate but is not part of the
+production pipeline and has not been trained or evaluated here. It contains
+18,650 rows, 16 missing email texts, no missing labels, and labels of 11,322
+Safe Email and 7,328 Phishing Email. No Tranco file is currently present.
 
 Roadmap:
 
-1. Define and review the stable model-ready feature-vector schema.
-2. Add a safe `.eml` input path and a labelled, non-personal dataset.
-3. Evaluate an ML model with leakage-safe splits and useful metrics.
-4. Build a separate explainable risk engine.
+1. Review the current rule weights and 21-feature schema.
+2. Have the ML teammate clean and integrate `Phishing_Email.csv` safely.
+3. Train and evaluate an ML model with leakage-safe splits and honest metrics.
+4. Decide how ML output should coexist with the current rule-based engine.
 5. Add analyst review and reporting.
 
 ## Sharing and privacy

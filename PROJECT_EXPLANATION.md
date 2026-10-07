@@ -6,113 +6,105 @@ Phishing emails try to make a person click a link, reveal credentials, open
 an attachment, or transfer money. Important evidence is spread across headers,
 links, and message wording, so inspecting it manually is slow.
 
-## Solution
+## Current solution
 
-We are building an email-analysis system that turns a reported email into
-structured evidence. Later, a model and a separate risk engine will combine
-that evidence and explain the result to a human analyst.
+The current system parses an email, extracts structured security and content
+signals, creates a deterministic 21-feature numeric vector, and applies a
+transparent rule-based risk engine. ML is a separate future or parallel
+workstream and is not integrated here.
 
-## Input
+## Input and processing
 
-The current input is a Gmail/Google Takeout `.mbox` file. Individual `.eml`
-support is planned but is not implemented yet.
+The existing parser reads Gmail/Google Takeout `.mbox` files. The terminal
+demo accepts an individual `.eml` through `analyze_email.py` using Python's
+standard email parser.
 
-## Processing
+1. Parse headers, date, body, HTML, and attachments.
+2. Extract SPF, DKIM, DMARC, URL/domain, content, and attachment signals.
+3. Convert the feature dictionary with
+   `parser/feature_vector.py:features_to_vector` into 21 fixed numeric values.
+4. Apply `parser/risk_engine.py:calculate_risk`.
+5. Display score, classification, and human-readable reasons.
 
-1. The parser reads each message.
-2. It extracts headers, date, body, HTML, and attachments.
-3. The feature extractor records links, domains, urgency terms,
-   credential-request terms, attachment counts, and authentication metadata.
-4. The current application displays the email in an HTML viewer.
-5. Future components will create a feature vector, make a prediction, score
-   risk, and show reasons.
+## Implemented features
 
-## Features
+- SPF/DKIM/DMARC presence, parsed status, pass values, and raw
+  `Authentication-Results`
+- URL count, suspicious URL/domain indicators, IP URLs, shorteners,
+  look-alike score/match, URL/domain lengths, subdomain count, and passive
+  redirect indicators
+- Credential keywords, credential-request detection, urgency score, email text
+  length, and attachment presence/count
+- Static HTML viewer and terminal `.eml` analysis demo
 
-Current examples include:
+Authentication presence is not the same as cryptographic verification. The
+current implementation parses available headers and does not re-verify DNS or
+signatures. No URLs are visited.
 
-- number of URLs
-- unique domains
-- suspicious-domain heuristic count
-- credential keywords
-- urgency score
-- attachment count
-- SPF/DKIM/DMARC header presence and raw authentication results
+## Fixed feature vector
 
-Presence is not the same as a verified pass. This distinction is part of the
-next authentication-analysis step.
-
-## ML
-
-Machine learning may help recognize combinations of signals that are difficult
-to capture with individual rules. It cannot be built responsibly until we have
-a labelled dataset and a defined feature-vector schema. There is no ML model
-in the current project.
-
-## Risk Engine
-
-A separate risk engine is useful because a model probability is not the whole
-investigation decision. The engine can combine model output, authentication
-results, domain evidence, content signals, and explanations using documented
-thresholds. The risk engine is not implemented yet.
-
-## Output
-
-Current output is a searchable HTML email viewer. The future output will
-contain a classification, a risk score, and evidence such as:
+The vector has exactly 21 values, in this order:
 
 ```text
-Risk Score: 91/100
-Classification: PHISHING
-Reasons:
-- DMARC authentication failed
-- The link domain resembles a trusted brand
-- The message requests credentials
-- Urgent language was detected
+spf_present, spf_pass, dkim_present, dkim_pass, dmarc_present, dmarc_pass,
+url_count, suspicious_url, suspicious_domain, ip_based_url, lookalike_score,
+lookalike_match, shortened_url, max_url_length, max_domain_length,
+max_subdomain_count, credential_request, urgency_score, has_attachment,
+attachments_count, email_text_length
 ```
 
-## Example
+Missing values use safe defaults and the output is deterministic.
 
-An email with a subject such as “Urgent: verify your account today”, a
-credential-request phrase, and a link to an unfamiliar domain would produce
-high content and URL-related feature values. That does not automatically prove
-phishing; authentication and domain analysis are also needed.
+## Explainable risk engine
 
-## Limitations
+The rule engine uses these weights:
 
-The current system:
+- SPF fail +15; DKIM fail +15; DMARC fail +20
+- suspicious domain +20; look-alike domain +20
+- IP URL +15; suspicious URL +15; URL shortener +5
+- credential request +20; high urgency (`urgency_score >= 2`) +10
 
-- reads `.mbox`, not `.eml`
-- does not verify SPF, DKIM, or DMARC
-- has no Tranco or reputation integration
-- has no labelled phishing dataset
-- has no ML model or risk score
-- has no SAFE/SUSPICIOUS/PHISHING classification
-- has no analyst review workflow
+The score is capped at 100. Classification thresholds are SAFE 0-29,
+SUSPICIOUS 30-59, and PHISHING 60-100. Reasons identify each triggered rule
+and its contribution. Repeated URL indicators are counted once.
 
-## Viva Explanation
+## Demo results
 
-### 30 seconds
+The three synthetic fixtures were manually verified:
 
-This project analyzes reported emails for phishing evidence. It first parses
-the mailbox, extracts email content, links, domains, attachments, and header
-metadata, and displays the result in a viewer. The planned system will add
-authentication analysis, a trained model, a risk engine, and explanations so
-an analyst can understand the final classification.
+```text
+samples/legitimate/legitimate_linkedin.eml -> SAFE, 0/100
+samples/suspicious/suspicious_account.eml  -> SUSPICIOUS, 40/100
+samples/phishing/phishing_credential.eml   -> PHISHING, 100/100
+```
 
-### 2 minutes
+Run one with:
 
-Phishing detection should not depend on one keyword or one blacklist. The
-system therefore separates the problem into stages. The parser reads the
-email and preserves its headers, body, HTML, and attachments. The feature
-extractor converts those raw values into structured evidence, such as URL
-count, domains, urgency terms, credential requests, and authentication
-metadata. Authentication analysis will distinguish whether SPF, DKIM, and
-DMARC are merely present from whether they passed. URL and domain analysis
-will later use reputation, popularity, look-alike, and redirect signals.
-After a labelled dataset is available, an ML model can learn useful patterns.
-A separate risk engine will combine that model output with security evidence,
-produce SAFE, SUSPICIOUS, or PHISHING, and list the reasons. A human analyst
-remains responsible for the final review. At the current stage, the parser,
-initial feature extractor, and HTML viewer work, but the ML and risk layers
-do not exist yet.
+```powershell
+python analyze_email.py samples/phishing/phishing_credential.eml
+```
+
+## ML status
+
+`Phishing_Email.csv` is available to the ML teammate but is not part of the
+production pipeline. It contains 18,650 rows, columns `Unnamed: 0`, `Email
+Text`, and `Email Type`, with 11,322 `Safe Email` labels and 7,328
+`Phishing Email` labels. It has 16 missing email texts and no missing labels.
+No ML model has been trained, evaluated, or integrated in this repository, and
+no ML accuracy result is claimed.
+
+## Testing
+
+The full suite currently passes with **16 passed**. The three synthetic demos
+and demo syntax validation also passed.
+
+## Limitations and next steps
+
+- No cryptographic SPF/DKIM/DMARC verification
+- No production Tranco dataset
+- No integrated ML model or ML evaluation
+- No analyst review workflow
+- MBOX parser remains the main mailbox ingestion path
+
+Next, review the current rule weights and coordinate the separate ML
+workstream. Do not treat the rule-based score as ML output.

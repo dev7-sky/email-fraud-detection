@@ -130,7 +130,8 @@ missing values safely become zero. The original feature dictionary is
 unchanged and remains available for explainability.
 
 **Testing:** Added tests for the phishing fixture and an empty feature
-dictionary. ML training and final classification remain intentionally absent.
+dictionary. ML training remains intentionally absent; rule-based
+classification is implemented separately.
 
 **Result:** PASS.
 
@@ -211,4 +212,31 @@ verified legitimate, suspicious, and phishing-oriented feature patterns.
 **Result:** PASS. Synthetic fixtures are explicitly unignored and are ready
 for GitHub sharing.
 
-**Next:** Define and review the model-ready feature-vector schema.
+**Next:** Review the vector and rule-based demo before ML work.
+
+## Step 11 — Milestone Documentation Update
+
+**Date:** 2026-10-07
+
+**What I did:** Updated all current project documentation to reflect the
+working end-to-end rule-based path: MBOX parsing, synthetic `.eml` analysis,
+feature extraction, the deterministic 21-feature vector, the explainable risk
+engine, and the terminal demo.
+
+**Confirmed demo results:**
+
+- `samples/legitimate/legitimate_linkedin.eml` -> SAFE, 0/100
+- `samples/suspicious/suspicious_account.eml` -> SUSPICIOUS, 40/100
+- `samples/phishing/phishing_credential.eml` -> PHISHING, 100/100
+
+**Testing:** Full suite passed with 16 tests. The three demo analyses and
+syntax validation also passed.
+
+**ML status:** `Phishing_Email.csv` is documented as available to the ML
+teammate only. It is not integrated, trained, evaluated, or connected to the
+production path, and no ML accuracy is claimed.
+
+**Result:** Documentation now reflects the current implementation and
+limitations.
+
+**Next:** Coordinate separate ML training and integration work.

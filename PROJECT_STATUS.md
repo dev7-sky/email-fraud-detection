@@ -63,7 +63,7 @@ Feature Extractor
 | Redirect detection | 🟡 PARTIAL | Detects shorteners and redirect-like URL indicators without network access | `parser/url_domain_analysis.py` | Consider isolated redirect inspection later; never follow arbitrary links |
 | NLP/content analysis | 🟡 PARTIAL | Keyword-based urgency and credential-request cues | `parser/feature_extractor.py` | Improve tokenization and validation |
 | Feature vector | 🟢 COMPLETE | Deterministic 21-value numeric vector with stable feature-name list and safe defaults | `parser/feature_vector.py` | Review schema before ML |
-| Training dataset | 🔴 NOT STARTED | Existing mailboxes are not labelled phishing datasets | `input/` | Obtain and label a suitable corpus |
+| Training dataset | 🟡 PARTIAL | `Phishing_Email.csv` is available for the ML teammate but is not integrated into production | Separate ML workstream | Clean, split, and validate separately |
 | ML model | 🔴 NOT STARTED | No training or inference code | None | Build only after labelled features exist |
 | Risk engine | 🟢 COMPLETE | Transparent capped rule score using extracted signals; no ML probability | `parser/risk_engine.py` | Review weights with labelled data later |
 | Classification | 🟢 COMPLETE | SAFE 0-29, SUSPICIOUS 30-59, PHISHING 60-100 | `parser/risk_engine.py` | Validate thresholds against labelled data |
@@ -108,11 +108,10 @@ Validation completed:
 
 ### Overall progress
 
-**Overall: approximately 32%.**
+**Overall: approximately 58%.**
 
 This reflects a working parser/viewer and tested feature-extraction layers,
-but no labelled training data, ML model, risk engine, final classification, or
-analyst-review workflow.
+but no integrated ML model, ML evaluation, or analyst-review workflow.
 
 ### Safe synthetic demonstration fixtures
 
@@ -133,6 +132,16 @@ encoded as `0.0` or `1.0`; URL signals use conservative aggregation across
 all URLs (any suspicious flag, maximum look-alike score, and maximum lengths);
 missing values default to zero. No model training or classification was added.
 
+Fixed feature names, in order:
+
+```text
+spf_present, spf_pass, dkim_present, dkim_pass, dmarc_present, dmarc_pass,
+url_count, suspicious_url, suspicious_domain, ip_based_url, lookalike_score,
+lookalike_match, shortened_url, max_url_length, max_domain_length,
+max_subdomain_count, credential_request, urgency_score, has_attachment,
+attachments_count, email_text_length
+```
+
 ### Final terminal demonstration
 
 Added `analyze_email.py`, a dependency-free command that parses one `.eml`,
@@ -150,6 +159,9 @@ authentication `fail` statuses add authentication points; `unknown`, `none`,
 `neutral`, and other statuses remain available as structured evidence without
 being silently treated as failures. This is a rule-based risk score, not ML.
 
+Classification thresholds are SAFE 0-29, SUSPICIOUS 30-59, and PHISHING
+60-100. The engine returns weighted human-readable reasons.
+
 ## 5. Important Technical Distinctions
 
 Authentication header presence is not authentication success. The extractor
@@ -165,24 +177,25 @@ malicious.
 ## 6. Current Project Flow
 
 ```text
-Email / .mbox
+.eml / email
     |
-Existing Email Parser
+Email Parser
     |
-Feature Extractor
+Feature Extraction
     |
-Structured Features
+21-feature numeric vector
     |
-HTML Viewer
+Explainable Risk Engine
+    |
+Risk Score + Classification + Reasons
+    |
+SAFE / SUSPICIOUS / PHISHING
 ```
 
-Future flow:
+ML is a future/parallel integration path:
 
 ```text
-Email -> Parser -> Feature Extractor
-       -> Authentication / URL-Domain / Content-NLP
-       -> Feature Vector -> ML Model -> Risk Engine
-       -> Risk Score + Classification + Reasons -> Analyst Review
+Email -> Parser -> Feature Extractor -> 21-feature vector -> ML model
 ```
 
 ## 7. File Change Log
@@ -330,36 +343,37 @@ Validation:
 | Risk engine | Three synthetic `.eml` feature dictionaries | Capped score, classification, and reasons | Covered by focused tests | PASS |
 | Final `.eml` demo | Three synthetic `.eml` fixtures | Formatted end-to-end analysis output | Covered by focused tests and manual runs | PASS |
 
+The full test suite currently passes with **16 passed**. The three synthetic
+demo analyses and demo syntax validation also passed.
+
 ## 9. Current TODO
 
 ### 🔴 MUST DO
 
-1. Add an explicit, tested feature-vector schema.
-2. Obtain a labelled phishing dataset before building an ML model.
+1. Keep the current rule-based path stable while ML work is reviewed.
+2. Integrate and validate `Phishing_Email.csv` only in the ML workstream.
 
 ### 🟡 SHOULD DO
 
 1. Improve URL extraction for HTML anchor attributes.
 2. Add safe domain normalization and reputation signals.
-3. Add explainable risk scoring after the feature schema is stable.
-4. Add `.eml` input support.
+3. Add broader `.eml` ingestion beyond the terminal demo.
+4. Add analyst review and reporting.
 
 ### 🟢 NICE TO HAVE
 
 1. Tranco popularity integration.
-2. Look-alike and redirect analysis.
-3. Analyst review and manual override UI.
-4. PDF and richer investigation reports.
+2. PDF and richer investigation reports.
 
 ## 10. NEXT STEP
 
-**Review the end-to-end demo output and rule weights before collecting labelled
-training data.**
+**Review the end-to-end demo output and rule weights, then coordinate the
+separate ML workstream using `Phishing_Email.csv`.**
 
 Authentication extraction is now separated into presence, status, pass value,
 and raw results. The next step is to decide which stable, numeric and
-categorical feature fields the future ML model will receive. Do not build the
-ML model yet.
+The current repository does not contain trained ML code or ML evaluation
+results.
 
 ## 11. GitHub Sharing Readiness
 
