@@ -1,14 +1,14 @@
 From: account-alert@example.org
 To: demo-recipient@example.com
 Date: Tue, 06 Oct 2026 10:30:00 +0000
-Subject: Urgent action required today
+Subject: Urgent account notice today
 Message-ID: <suspicious-demo@example.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Received-SPF: neutral
 Authentication-Results: mx.example.org; spf=neutral; dkim=none
 
-Urgent action required today. Please review the account notice within 24
+Urgent account notice today. Please review the notice within 24
 hours at http://192.0.2.10/account/verify?next=example.
 
 This is a synthetic demonstration message with mixed authentication signals.

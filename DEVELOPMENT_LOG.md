@@ -136,6 +136,55 @@ dictionary. ML training and final classification remain intentionally absent.
 
 **Next:** Review the vector schema, then obtain a labelled non-personal dataset.
 
+## Step 9 — Explainable Risk Engine
+
+**Date:** 2026-10-07
+
+**What I did:** Added a deterministic rule-based risk engine that accepts the
+existing feature dictionary and returns `risk_score`, `classification`, and
+human-readable weighted reasons.
+
+**Files:** `parser/risk_engine.py`, `tests/test_feature_extractor.py`,
+`PROJECT_STATUS.md`, `samples/suspicious/suspicious_account.eml`
+
+**Rules:** SPF fail +15, DKIM fail +15, DMARC fail +20, suspicious domain
++20, look-alike +20, IP URL +15, suspicious URL +15, credential request +20,
+high urgency +10, and shortener +5. Scores are capped at 100 with thresholds
+SAFE 0-29, SUSPICIOUS 30-59, and PHISHING 60-100.
+
+**Explainability:** Reasons include the triggered rule and its contribution.
+Signals are aggregated once across URLs; unknown authentication is not treated
+as failure. This is not an ML model and no accuracy claim is made.
+
+**Testing:** Added synthetic legitimate, suspicious, phishing, and empty-input
+tests. The suspicious fixture was kept non-credential-request while retaining
+urgency and IP-URL signals.
+
+**Result:** PASS.
+
+**Next:** Review weights and thresholds against a labelled non-personal dataset.
+
+## Step 10 — Final `.eml` Demonstration Interface
+
+**Date:** 2026-10-07
+
+**What I did:** Added `analyze_email.py`, a simple dependency-free terminal
+interface for one `.eml` file. It reuses parsing, feature extraction, the
+stable feature vector, and the explainable rule engine.
+
+**Output:** Prints classification, 0-100 risk score, SPF/DKIM/DMARC statuses,
+URL/domain indicators, content signals, and weighted human-readable reasons.
+
+**Safety:** The demo never visits or follows URLs and does not implement or
+claim ML functionality.
+
+**Testing:** Added an end-to-end formatting test for all three synthetic
+fixtures and manually verified each sample.
+
+**Result:** PASS.
+
+**Next:** Review demo output and risk rules before collecting labelled data.
+
 ## Step 7 — Safe Synthetic Demonstration Emails
 
 **Date:** 2026-10-07

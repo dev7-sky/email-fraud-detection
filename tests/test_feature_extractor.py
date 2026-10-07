@@ -5,6 +5,8 @@ from pathlib import Path
 
 from parser.feature_extractor import extract_email_features
 from parser.feature_vector import FEATURE_NAMES, features_to_vector
+from parser.risk_engine import calculate_risk
+from analyze_email import analyze_file, format_analysis
 from parser.url_domain_analysis import TrancoLookup, analyze_url
 
 
@@ -208,3 +210,52 @@ def test_feature_vector_uses_safe_defaults_for_missing_values():
 
     assert len(names) == len(vector) == 21
     assert vector == [0.0] * 21
+
+
+def test_risk_engine_classifies_all_synthetic_samples_with_explanations():
+    _, legitimate = load_sample("legitimate/legitimate_linkedin.eml")
+    _, suspicious = load_sample("suspicious/suspicious_account.eml")
+    _, phishing = load_sample("phishing/phishing_credential.eml")
+
+    legitimate_result = calculate_risk(legitimate)
+    suspicious_result = calculate_risk(suspicious)
+    phishing_result = calculate_risk(phishing)
+
+    assert legitimate_result == {
+        "risk_score": 0,
+        "classification": "SAFE",
+        "reasons": [],
+    }
+    assert suspicious_result["risk_score"] == 40
+    assert suspicious_result["classification"] == "SUSPICIOUS"
+    assert "URL uses an IP address instead of a domain (+15)" in suspicious_result["reasons"]
+    assert "High urgency language detected (+10)" in suspicious_result["reasons"]
+    assert phishing_result["risk_score"] == 100
+    assert phishing_result["classification"] == "PHISHING"
+    assert "SPF authentication failed (+15)" in phishing_result["reasons"]
+    assert "Credential request detected (+20)" in phishing_result["reasons"]
+
+
+def test_risk_engine_uses_safe_defaults_and_caps_score():
+    result = calculate_risk({})
+
+    assert result == {"risk_score": 0, "classification": "SAFE", "reasons": []}
+
+
+def test_demo_analysis_formats_all_three_synthetic_samples():
+    expected = {
+        "legitimate/legitimate_linkedin.eml": ("SAFE", 0),
+        "suspicious/suspicious_account.eml": ("SUSPICIOUS", 40),
+        "phishing/phishing_credential.eml": ("PHISHING", 100),
+    }
+    for relative_path, (classification, score) in expected.items():
+        path = SAMPLE_ROOT / relative_path
+        features, names, vector, risk = analyze_file(path)
+        output = format_analysis(path, features, risk)
+
+        assert len(names) == len(vector) == 21
+        assert f"Classification: {classification}" in output
+        assert f"Risk Score: {score}/100" in output
+        assert "Authentication" in output
+        assert "URL / DOMAIN" in output
+        assert "CONTENT" in output

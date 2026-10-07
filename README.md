@@ -103,10 +103,10 @@ python -m pytest
 
 ## Current project status
 
-The parser, initial feature extraction, authentication status extraction,
-passive URL/domain analysis, and static viewer are implemented and tested.
-The ML model, risk engine, final classification, `.eml` entry point, analyst
-review workflow, and real Tranco dataset integration are not complete.
+The parser, feature extraction, authentication status extraction, passive
+URL/domain analysis, rule-based risk engine, terminal `.eml` demo, and static
+viewer are implemented and tested. The ML model, analyst review workflow, and
+real Tranco dataset integration are not complete.
 
 ## Inspect extracted features in the terminal
 
@@ -157,12 +157,33 @@ the suspicious fixture; and credential language, failed authentication, and a
 look-alike `.invalid` domain for the phishing fixture. These are feature
 signals only, not final classifications.
 
+## Run the final `.eml` demo
+
+Analyze one safe synthetic email from the project root:
+
+```powershell
+python analyze_email.py samples/phishing/phishing_credential.eml
+```
+
+You can substitute any of the three fixtures:
+
+```powershell
+python analyze_email.py samples/legitimate/legitimate_linkedin.eml
+python analyze_email.py samples/suspicious/suspicious_account.eml
+```
+
+The command prints authentication statuses, URL/domain indicators, content
+signals, the rule-based risk score, classification, and reasons. It also
+constructs the existing 21-value feature vector internally. It does not train
+or invoke an ML model and never visits URLs.
+
 ## Project structure
 
 ```text
 main.py                         Application entry point
 inspect_features.py            Terminal feature inspection command
 inspect_sample.py              Synthetic .eml feature inspection command
+analyze_email.py               Final terminal .eml analysis demo
 parser/mail_parser.py           MBOX parser and email record builder
 parser/feature_extractor.py     Initial feature extraction
 parser/url_domain_analysis.py   URL/domain feature analysis
@@ -178,8 +199,8 @@ DEVELOPMENT_LOG.md              Plain-language development journal
 
 ## Limitations and roadmap
 
-Current features are heuristics and metadata extraction, not a phishing
-decision. Authentication results are parsed from existing headers but are not
+Current features and the risk decision are heuristics and metadata extraction,
+not ML. Authentication results are parsed from existing headers but are not
 cryptographically re-verified. Existing mailbox data is not a labelled
 training dataset, and no Tranco file is currently present in this workspace.
 

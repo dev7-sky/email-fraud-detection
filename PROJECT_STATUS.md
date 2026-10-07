@@ -51,7 +51,7 @@ Feature Extractor
 | Component | Status | Current Implementation | Files | Next Work |
 |---|---|---|---|---|
 | Email parser | 🟢 COMPLETE | Reads Gmail `.mbox` files and extracts metadata, bodies, and attachments | `parser/mail_parser.py` | Preserve behavior while adding formats |
-| `.eml` support | 🔴 NOT STARTED | No `.eml` entry point exists | None | Add after the current feature layers are stable |
+| `.eml` support | 🟡 PARTIAL | `analyze_email.py` parses one `.eml` for the terminal demo; mailbox parser remains MBOX-only | `analyze_email.py` | Add broader `.eml` ingestion later |
 | Feature extractor | 🟡 PARTIAL | Extracts initial URL, domain, content, attachment, and auth metadata | `parser/feature_extractor.py` | Improve correctness and add authentication results |
 | SPF | 🟡 PARTIAL | Extracts presence, status, and tri-state pass value from authentication results or `Received-SPF` | `parser/feature_extractor.py` | Add cryptographic/DNS verification |
 | DKIM | 🟡 PARTIAL | Extracts signature presence and status from authentication results | `parser/feature_extractor.py` | Add cryptographic verification |
@@ -65,10 +65,10 @@ Feature Extractor
 | Feature vector | 🟢 COMPLETE | Deterministic 21-value numeric vector with stable feature-name list and safe defaults | `parser/feature_vector.py` | Review schema before ML |
 | Training dataset | 🔴 NOT STARTED | Existing mailboxes are not labelled phishing datasets | `input/` | Obtain and label a suitable corpus |
 | ML model | 🔴 NOT STARTED | No training or inference code | None | Build only after labelled features exist |
-| Risk engine | 🔴 NOT STARTED | No score or thresholds | None | Combine validated signals and model probability |
-| Classification | 🔴 NOT STARTED | No SAFE/SUSPICIOUS/PHISHING result | None | Add with justified thresholds |
-| Explainability | 🔴 NOT STARTED | No reasons or evidence summary | None | Return score plus human-readable reasons |
-| UI | 🟡 PARTIAL | Static HTML email viewer and search filters | `viewer/html_generator.py` | Display analysis results |
+| Risk engine | 🟢 COMPLETE | Transparent capped rule score using extracted signals; no ML probability | `parser/risk_engine.py` | Review weights with labelled data later |
+| Classification | 🟢 COMPLETE | SAFE 0-29, SUSPICIOUS 30-59, PHISHING 60-100 | `parser/risk_engine.py` | Validate thresholds against labelled data |
+| Explainability | 🟢 COMPLETE | Returns human-readable weighted reasons for each triggered rule | `parser/risk_engine.py` | Add richer evidence details later |
+| UI | 🟡 PARTIAL | Static HTML email viewer plus dependency-free terminal `.eml` analysis demo | `viewer/html_generator.py`, `analyze_email.py` | Display analysis results in the viewer later |
 | Human analyst review | 🔴 NOT STARTED | No review or override workflow | None | Add after classification exists |
 | Testing | 🟡 PARTIAL | Smoke tests, focused feature tests, and synthetic `.eml` fixture tests exist | `tests/`, `samples/` | Expand coverage and edge cases |
 | Documentation | 🟡 PARTIAL | Architecture and project tracking documents | Root `.md` files | Update after each major component |
@@ -132,6 +132,23 @@ dictionary into a deterministic 21-value numeric vector. Boolean signals are
 encoded as `0.0` or `1.0`; URL signals use conservative aggregation across
 all URLs (any suspicious flag, maximum look-alike score, and maximum lengths);
 missing values default to zero. No model training or classification was added.
+
+### Final terminal demonstration
+
+Added `analyze_email.py`, a dependency-free command that parses one `.eml`,
+reuses the existing feature extractor, constructs the 21-value vector, runs
+the rule-based risk engine, and prints authentication, URL/domain, content,
+classification, score, and reasons. It does not train or invoke ML and never
+visits URLs.
+
+### Explainable risk engine
+
+Added `parser/risk_engine.py` with transparent weighted rules, a 0-100 cap,
+and fixed classification thresholds. Each URL indicator is counted once
+across all URLs to avoid repetition multiplying the score. Only explicit
+authentication `fail` statuses add authentication points; `unknown`, `none`,
+`neutral`, and other statuses remain available as structured evidence without
+being silently treated as failures. This is a rule-based risk score, not ML.
 
 ## 5. Important Technical Distinctions
 
@@ -310,6 +327,8 @@ Validation:
 | Synthetic suspicious `.eml` | `samples/suspicious/suspicious_account.eml` | Urgency, IP URL, and mixed authentication are extracted | Covered by focused tests | PASS |
 | Synthetic phishing `.eml` | `samples/phishing/phishing_credential.eml` | Credential language, look-alike URL, and failed authentication are extracted | Covered by focused tests | PASS |
 | Feature vector | Extracted feature dictionaries and empty dictionary | Stable 21-name schema, numeric vector, and safe defaults | Covered by focused tests | PASS |
+| Risk engine | Three synthetic `.eml` feature dictionaries | Capped score, classification, and reasons | Covered by focused tests | PASS |
+| Final `.eml` demo | Three synthetic `.eml` fixtures | Formatted end-to-end analysis output | Covered by focused tests and manual runs | PASS |
 
 ## 9. Current TODO
 
@@ -334,7 +353,7 @@ Validation:
 
 ## 10. NEXT STEP
 
-**Review the 21-feature model-ready vector schema before collecting labelled
+**Review the end-to-end demo output and rule weights before collecting labelled
 training data.**
 
 Authentication extraction is now separated into presence, status, pass value,
